@@ -436,7 +436,8 @@ kbd{font:500 11.5px var(--f-mono);padding:2px 6px;border-radius:6px;border:1px s
       <div class="fld"><div class="fld-h"><label for="el-gap">Gộp mảnh gần nhau</label><span class="val" id="el-gap-v"></span></div><input type="range" id="el-gap" min="0" max="80" value="6"><span class="small">Các mảnh cách nhau ít hơn ngần này được tính là một element (chữ, tia lấp lánh…).</span></div>
       <div class="fld"><div class="fld-h"><label for="el-min">Bỏ mảnh nhỏ hơn</label><span class="val" id="el-min-v"></span></div><input type="range" id="el-min" min="0" max="2000" step="10" value="60"></div>
       <div class="seg" id="el-mode"><button data-v="pick">Chọn element</button><button data-v="edit">Sửa &amp; thêm khung</button></div>
-      <p class="small" id="el-edit-help" hidden>Kéo trên ảnh để vẽ khung mới. Kéo cạnh hoặc góc để đổi cỡ. Bấm vào một khung rồi kéo bên trong để di chuyển. Bấm <b>×</b> trên thẻ hoặc phím Delete để xóa khung đang chọn. Giữ Space rồi kéo để di chuyển ảnh. Đổi hai thanh trên sẽ tìm lại từ đầu, Ctrl+Z để lấy lại khung đã sửa.</p>
+      <div class="acts" id="el-edit-acts" hidden><button class="btn" id="el-trim" title="Thu khung đang chọn sát nội dung, bỏ khoảng trống (phím T)" disabled>Trim khung đang chọn</button><button class="btn" id="el-trim-all" title="Thu mọi khung sát nội dung, bỏ khoảng trống">Trim tất cả</button></div>
+      <p class="small" id="el-edit-help" hidden>Bấm <b>Trim</b> để thu khung sát nội dung, bỏ khoảng trong suốt hoặc màu nền thừa. Kéo trên ảnh để vẽ khung mới. Kéo cạnh hoặc góc để đổi cỡ. Bấm vào một khung rồi kéo bên trong để di chuyển. Bấm <b>×</b> trên thẻ hoặc phím Delete để xóa khung đang chọn. Giữ Space rồi kéo để di chuyển ảnh. Đổi hai thanh trên sẽ tìm lại từ đầu, Ctrl+Z để lấy lại khung đã sửa.</p>
       <div class="res-head"><b id="el-count">0 element</b><span><button class="link" id="el-all">Chọn hết</button> · <button class="link" id="el-none">Bỏ chọn</button></span></div>
       <div class="el-grid" id="el-grid"></div>
       <p class="small" id="el-more" hidden></p>
@@ -1073,7 +1074,7 @@ function ensureEls(){const d=S.cur;const grid=$('#el-grid');
 function elCanvas(d,e){if(!e.cvs)e.cvs=e.label>0&&d.elMap?extractEl(d.elMap,e):rectEl(d.cv,e);return e.cvs;}
 function rectEl(cv,e){const c=cropCv(cv,e.x,e.y,e.w,e.h);const b=alphaBBox(c,2);return b&&(b.w<c.width||b.h<c.height)?cropCv(c,b.x,b.y,b.w,b.h):c;}
 const EL_MAX=240;
-function renderEls(){const d=S.cur;const grid=$('#el-grid');grid.innerHTML='';if(!d||!d.elements)return;const els=d.elements;
+function renderEls(){const d=S.cur;const grid=$('#el-grid');grid.innerHTML='';$('#el-trim').disabled=!(d&&d.elements&&d.elActive&&d.elements.includes(d.elActive));$('#el-trim-all').disabled=!(d&&d.elements&&d.elements.length);if(!d||!d.elements)return;const els=d.elements;
   $('#el-count').textContent=nf(els.length)+' element · '+els.filter(e=>e.sel).length+' đã chọn';
   const more=$('#el-more');more.hidden=els.length<=EL_MAX;more.textContent=`Đang hiện ${EL_MAX}/${nf(els.length)} thẻ. Tăng “Gộp mảnh” hoặc “Bỏ mảnh nhỏ” để gọn hơn. Nút lưu vẫn tính mọi element đã chọn.`;
   els.slice(0,EL_MAX).forEach((e,i)=>{const c=document.createElement('div');c.className='el-card'+(e.sel?' on':'')+(e===d.elActive?' act':'');c.dataset.i=i;
@@ -1098,11 +1099,11 @@ $('#sh-make').onclick=()=>{const d=S.cur;if(!d||!d.elements)return;const sel=d.e
 $('#el-autobg').onclick=async()=>{const d=S.cur;if(!d)return;const r=detectBg(d.cv);if(r.transparent){toast('Không dò được màu nền');return;}await withBusy('Đang tách nền…',async()=>{commit('Tách nền theo màu',colorKey(d.cv,r,{tol:16,soft:10,contiguous:true,defringe:true}));});};
 $('#el-refind').onclick=()=>{const d=S.cur;if(!d)return;elKeepEdits(d);d.elements=null;d.elSource=null;d.elActive=null;ensureEls();render();};
 /* sửa khung bằng tay: lịch sử riêng cho khung (Ctrl+Z trong công cụ này), vẽ thêm, đổi cỡ, di chuyển, xóa */
-function elSnap(d){return{els:d.elements?d.elements.map(e=>({...e})):null,map:d.elMap,src:d.elSource,edited:!!d.elEdited};}
+function elSnap(d){return{els:d.elements?d.elements.map(e=>({...e})):null,map:d.elMap,src:d.elSource,edited:!!d.elEdited,act:d.elements&&d.elActive?d.elements.indexOf(d.elActive):-1};}
 function elPush(d,label,snap){(d.elUndo=d.elUndo||[]).push({snap:snap||elSnap(d),label});if(d.elUndo.length>60)d.elUndo.shift();d.elRedo=[];}
 function elKeepEdits(d){if(d.elements&&d.elEdited){elPush(d,'Tìm lại element');updateUndo();}}
 function elStack(d,k){return d&&S.tool==='element'&&d[k]&&d[k].length?d[k]:null;}
-function elStep(d,from,to,verb){stopPreview();const e=d[from].pop();(d[to]=d[to]||[]).push({snap:elSnap(d),label:e.label});const s=e.snap;d.elements=s.els;d.elMap=s.map;d.elSource=s.src;d.elEdited=s.edited;d.elActive=null;d.elHover=-1;P.elDrag=null;elChanged();toast(verb+e.label);}
+function elStep(d,from,to,verb){stopPreview();const e=d[from].pop();(d[to]=d[to]||[]).push({snap:elSnap(d),label:e.label});const s=e.snap;d.elements=s.els;d.elMap=s.map;d.elSource=s.src;d.elEdited=s.edited;d.elActive=s.els&&s.act>=0?s.els[s.act]||null:null;d.elHover=-1;P.elDrag=null;elChanged();toast(verb+e.label);}
 function elChanged(){const d=S.cur;if(d)$('#el-gridnote').hidden=d.elSource!=='grid';renderEls();updateUndo();render();}
 function elDelete(d,e){const i=d.elements?d.elements.indexOf(e):-1;if(i<0)return;elPush(d,'Xóa khung');d.elements.splice(i,1);if(d.elActive===e)d.elActive=null;d.elHover=-1;d.elEdited=true;elChanged();}
 function elNewName(d){const base=slug(d.name),used=new Set(d.elements.map(e=>e.name));let k=d.elements.length+1,n;while(used.has(n=base+'-'+String(k).padStart(2,'0')))k++;return n;}
@@ -1128,8 +1129,20 @@ function elDragEnd(){const d=S.cur,D=P.elDrag;P.elDrag=null;if(!D||!d)return;
   const i=d.elements.indexOf(e);const card=$(`.el-card[data-i="${i}"]`);if(card)card.scrollIntoView({block:'nearest',behavior:'smooth'});}
 function elDragCancel(){const d=S.cur,D=P.elDrag;P.elDrag=null;if(!D||!d||!D.live)return;
   if(D.mode==='new'){const i=d.elements.indexOf(D.el);if(i>=0)d.elements.splice(i,1);d.elActive=null;}else Object.assign(D.el,D.r0);render();}
+/* Trim: thu khung về sát nội dung. Bỏ điểm gần trong suốt; nếu ảnh còn nền đặc (dò từ mép ảnh) thì bỏ cả màu nền đó. */
+function elTrimBg(d){const r=detectBg(d.cv);return r.transparent||!(r.share>=0.5)?null:r;}
+function elTrimRect(cv,e,bg){const w=e.w,h=e.h,p=cx(cv).getImageData(e.x,e.y,w,h).data;let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y++){let o=y*w*4;for(let x=0;x<w;x++,o+=4){if(p[o+3]<=2)continue;if(bg&&p[o+3]>=250&&cdist(p[o],p[o+1],p[o+2],bg.r,bg.g,bg.b)<40)continue;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}
+  return x1<0?null:{x:e.x+x0,y:e.y+y0,w:x1-x0+1,h:y1-y0+1};}
+function elTrim(d,list,label){const bg=elTrimBg(d),snap=elSnap(d);let changed=0,empty=0;
+  for(const e of list){const r=elTrimRect(d.cv,e,bg);if(!r){empty++;continue;}if(r.x!==e.x||r.y!==e.y||r.w!==e.w||r.h!==e.h){e.x=r.x;e.y=r.y;e.w=r.w;e.h=r.h;e.label=-1;e.cvs=null;changed++;}}
+  if(changed){d.elEdited=true;elPush(d,label,snap);elChanged();}return{changed,empty};}
+$('#el-trim').onclick=()=>{const d=S.cur;if(!d||!d.elements||!d.elActive||!d.elements.includes(d.elActive))return;const r=elTrim(d,[d.elActive],'Trim khung');
+  toast(r.changed?'Đã trim khung: '+d.elActive.w+'×'+d.elActive.h:r.empty?'Khung này không có nội dung, bấm × để xóa':'Khung đã sát nội dung');};
+$('#el-trim-all').onclick=()=>{const d=S.cur;if(!d||!d.elements||!d.elements.length)return;const r=elTrim(d,d.elements,'Trim tất cả khung');
+  const em=r.empty?' · '+nf(r.empty)+' khung không có nội dung':'';toast(r.changed?'Đã trim '+nf(r.changed)+' khung'+em:'Các khung đã sát nội dung'+em);};
 const EL_CUR={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',move:'move'};
-function setElMode(m){P.elMode=m;setElSeg(m);$('#el-edit-help').hidden=m!=='edit';const d=S.cur;if(d&&m!=='edit')d.elActive=null;P.elDrag=null;view.style.cursor='';view.className='';renderEls();updateHint();render();}
+function setElMode(m){P.elMode=m;setElSeg(m);$('#el-edit-help').hidden=$('#el-edit-acts').hidden=m!=='edit';const d=S.cur;if(d&&m!=='edit')d.elActive=null;P.elDrag=null;view.style.cursor='';view.className='';renderEls();updateHint();render();}
 const setElSeg=seg('el-mode',P.elMode,setElMode);
 function elHit(ip){const d=S.cur;if(!d||!d.elements)return -1;for(let i=d.elements.length-1;i>=0;i--){const e=d.elements[i];if(ip.x>=e.x&&ip.x<e.x+e.w&&ip.y>=e.y&&ip.y<e.y+e.h)return i;}return -1;}
 TOOLS.element={title:'Tách element',desc:'Tự tìm từng vật thể rời nhau trên nền trong suốt, sửa hoặc vẽ thêm khung bằng tay, rồi lưu riêng từng cái hoặc ghép thành sprite sheet.',
@@ -1346,7 +1359,7 @@ window.addEventListener('keydown',e=>{if(help.open)return;const tg=e.target,tag=
   if(e.key==='['||e.key===']'){const v=clamp(P.coSize+(e.key===']'?1:-1)*Math.max(1,Math.round(P.coSize*0.15)),1,400);setRng('co-size',v);return;}
   if(e.key==='0'){fitView();return;}if(e.key==='1'){if(S.cur)zoomAt(1/S.cur.view.zoom,VW/2,VH/2);return;}
   if(e.key==='+'||e.key==='='){zoomAt(1.25,VW/2,VH/2);return;}if(e.key==='-'||e.key==='_'){zoomAt(0.8,VW/2,VH/2);return;}
-  if(S.tool==='element'&&P.elMode==='edit'&&S.cur&&S.cur.elActive){if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();elDelete(S.cur,S.cur.elActive);return;}if(e.key==='Escape'){S.cur.elActive=null;renderEls();render();return;}}
+  if(S.tool==='element'&&P.elMode==='edit'&&S.cur&&S.cur.elActive){if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();elDelete(S.cur,S.cur.elActive);return;}if(e.key==='t'||e.key==='T'){e.preventDefault();$('#el-trim').click();return;}if(e.key==='Escape'){S.cur.elActive=null;renderEls();render();return;}}
   if(e.key==='Escape'){stopPreview();return;}});
 window.addEventListener('keyup',e=>{if(e.code==='Space'&&S.space){S.space=false;view.style.cursor='';}});
 window.addEventListener('blur',()=>{S.space=false;if(S.compare){S.compare=false;updateHint();render();}});
