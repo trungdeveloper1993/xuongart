@@ -19,13 +19,15 @@ Bộ công cụ chuẩn bị art chạy hoàn toàn trong trình duyệt. Ảnh 
 
 ## Cập nhật trang GitHub Pages
 
-Trang được GitHub Pages lấy thẳng từ nhánh `main` (thư mục gốc), không có bước build. Mỗi khi `main` có commit mới, GitHub tự đăng lại trang sau khoảng 1–2 phút.
+Trang được đăng bằng GitHub Actions (tệp `.github/workflows/pages.yml`), không có bước build. Mỗi khi `main` có commit mới, workflow **Deploy GitHub Pages** tự đăng lại trang sau khoảng 1–2 phút.
+
+Cài đặt một lần: vào **Settings → Pages**, mục *Build and deployment*, chọn Source là **GitHub Actions**.
 
 ### Cách 1: sửa trên github.com
 
 1. Mở tệp cần sửa (thường là `index.html`), bấm biểu tượng bút chì, sửa xong bấm **Commit changes** vào nhánh `main`.
    Muốn thêm hoặc thay tệp thì dùng **Add file → Upload files** (mỗi tệp phải dưới 25 MB).
-2. Mở tab **Actions** để xem lượt chạy *pages build and deployment*. Có dấu tích xanh là trang đã cập nhật.
+2. Mở tab **Actions** để xem lượt chạy *Deploy GitHub Pages*. Có dấu tích xanh là trang đã cập nhật.
 
 ### Cách 2: dùng git
 
@@ -40,10 +42,13 @@ git push origin main
 
 Nếu làm trên nhánh khác thì mở pull request vào `main` rồi merge. Trang chỉ đổi khi thay đổi đã nằm trên `main`.
 
-### Trang vẫn hiện bản cũ?
+Muốn đăng lại mà không sửa gì: tab **Actions → Deploy GitHub Pages → Run workflow**.
+
+### Trang vẫn hiện bản cũ hoặc báo 404?
 
 - Tải lại bỏ qua cache: Ctrl+Shift+R (macOS: Cmd+Shift+R).
-- Kiểm tra **Settings → Pages**: Source là **Deploy from a branch**, Branch là **main**, thư mục **/ (root)**.
+- Kiểm tra **Settings → Pages**: Source phải là **GitHub Actions**.
+- Nếu tab **Actions** báo đang tắt: **Settings → Actions → General**, chọn **Allow all actions and reusable workflows**, bấm **Save**, rồi chạy lại workflow.
 - Mô hình AI và bộ chạy ONNX được trình duyệt lưu lại theo đường dẫn (bộ nhớ đệm `xuong-art-ai-v1` trong `index.html`). Nếu thay tệp trong `models/` hoặc `vendor/ort/` mà giữ nguyên tên, hãy đổi tên bộ nhớ đệm đó (ví dụ `xuong-art-ai-v2`) và cập nhật số byte trong `MODELS` / `WASM_BYTES` của `index.html`, để người dùng cũ tải bản mới.
 
 ## Chạy thử trên máy
@@ -66,6 +71,7 @@ vendor/ort/                ONNX Runtime Web 1.20.1 (chạy mô hình AI)
 models/u2netp.onnx         mô hình Nhanh (4,4 MB)
 models/silueta.part1.bin   mô hình Chi tiết, chia 2 phần
 models/silueta.part2.bin   để mỗi phần dưới 25 MB
+.github/workflows/pages.yml  tự đăng trang lên GitHub Pages khi main thay đổi
 ```
 
 ## Ghi công
