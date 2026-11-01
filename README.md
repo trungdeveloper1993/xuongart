@@ -2,6 +2,8 @@
 
 Bộ công cụ chuẩn bị art chạy hoàn toàn trong trình duyệt. Ảnh được xử lý ngay trên máy người dùng và không tải lên máy chủ nào.
 
+**Dùng ngay:** https://trungdeveloper1993.github.io/xuongart/
+
 ## Tính năng
 
 - **Tách nền**, có 3 cách:
@@ -15,43 +17,41 @@ Bộ công cụ chuẩn bị art chạy hoàn toàn trong trình duyệt. Ảnh 
 - **Cắt & xoay**, **chỉnh màu**, **viền sticker & bóng đổ**, **bảng màu & pixel art**.
 - **Xuất file:** PNG, JPG hoặc WebP theo tỉ lệ tùy chọn, bộ icon nhiều cỡ, hoặc lưu mọi tab thành một file ZIP.
 
-## Đưa lên GitHub Pages
+## Cập nhật trang GitHub Pages
 
-### Cách 1: làm trên trang github.com, không cần cài gì
+Trang được GitHub Pages lấy thẳng từ nhánh `main` (thư mục gốc), không có bước build. Mỗi khi `main` có commit mới, GitHub tự đăng lại trang sau khoảng 1–2 phút.
 
-1. Vào github.com, bấm **New repository**. Đặt tên (ví dụ `xuong-art`) và chọn **Public**.
-2. Trong repo vừa tạo, bấm **Add file → Upload files**.
-3. Kéo **toàn bộ nội dung** của thư mục này vào, gồm `index.html`, `favicon.svg` và hai thư mục `vendor` và `models`.
-   - Mỗi tệp đều dưới 25 MB nên tải qua trình duyệt được.
-   - Tệp `.nojekyll` bị ẩn trên máy cũng không sao nếu không kéo theo.
-4. Bấm **Commit changes**.
-5. Vào **Settings → Pages**. Ở mục *Build and deployment*, chọn:
-   - Source: **Deploy from a branch**
-   - Branch: **main**, thư mục **/ (root)**
+### Cách 1: sửa trên github.com
 
-   Rồi bấm **Save**.
-6. Đợi 1–2 phút. Trang sẽ chạy ở `https://<tên-github>.github.io/xuong-art/`.
+1. Mở tệp cần sửa (thường là `index.html`), bấm biểu tượng bút chì, sửa xong bấm **Commit changes** vào nhánh `main`.
+   Muốn thêm hoặc thay tệp thì dùng **Add file → Upload files** (mỗi tệp phải dưới 25 MB).
+2. Mở tab **Actions** để xem lượt chạy *pages build and deployment*. Có dấu tích xanh là trang đã cập nhật.
 
 ### Cách 2: dùng git
 
 ```bash
-cd xuong-art
-git init
+git clone https://github.com/trungdeveloper1993/xuongart.git
+cd xuongart
+# sửa tệp…
 git add .
-git commit -m "Xưởng Art"
-git branch -M main
-git remote add origin https://github.com/<tên-github>/xuong-art.git
-git push -u origin main
+git commit -m "Mô tả thay đổi"
+git push origin main
 ```
 
-Sau đó bật Pages như bước 5 ở trên.
+Nếu làm trên nhánh khác thì mở pull request vào `main` rồi merge. Trang chỉ đổi khi thay đổi đã nằm trên `main`.
+
+### Trang vẫn hiện bản cũ?
+
+- Tải lại bỏ qua cache: Ctrl+Shift+R (macOS: Cmd+Shift+R).
+- Kiểm tra **Settings → Pages**: Source là **Deploy from a branch**, Branch là **main**, thư mục **/ (root)**.
+- Mô hình AI và bộ chạy ONNX được trình duyệt lưu lại theo đường dẫn (bộ nhớ đệm `xuong-art-ai-v1` trong `index.html`). Nếu thay tệp trong `models/` hoặc `vendor/ort/` mà giữ nguyên tên, hãy đổi tên bộ nhớ đệm đó (ví dụ `xuong-art-ai-v2`) và cập nhật số byte trong `MODELS` / `WASM_BYTES` của `index.html`, để người dùng cũ tải bản mới.
 
 ## Chạy thử trên máy
 
 Tách nền AI cần chạy qua máy chủ web. Mở thẳng tệp `index.html` thì các công cụ khác vẫn chạy, nhưng AI sẽ không tải được mô hình.
 
 ```bash
-cd xuong-art
+cd xuongart
 python3 -m http.server 8000
 # mở http://localhost:8000
 ```
