@@ -197,6 +197,11 @@ input[type=color]{width:36px;height:34px;padding:3px;border-radius:8px;border:1p
 .el-card{position:relative;border:1px solid var(--line);border-radius:11px;padding:6px;display:flex;flex-direction:column;gap:5px;background:var(--sheet);min-width:0}
 .el-card.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .el-card.hov{background:var(--sheet-2)}
+.el-card.act{outline:2px solid var(--blade);outline-offset:1px}
+.el-th{position:relative}
+.el-del{position:absolute;right:5px;bottom:5px;width:24px;height:24px;display:grid;place-items:center;padding:0;border-radius:7px;border:1px solid var(--line-2);background:var(--sheet);color:var(--ink-2)}
+.el-del:hover{background:var(--danger);border-color:var(--danger);color:#fff}
+.el-del .i{width:13px;height:13px}
 .el-th{aspect-ratio:1;max-width:100%;border-radius:7px;display:grid;place-items:center;overflow:hidden;cursor:pointer}
 .el-th canvas{width:88%;height:88%;display:block}
 .el-num{position:absolute;top:10px;left:10px;font:600 10.5px/1 var(--f-mono);background:var(--ink);color:var(--sheet);border-radius:5px;padding:3px 5px}
@@ -430,6 +435,8 @@ kbd{font:500 11.5px var(--f-mono);padding:2px 6px;border-radius:6px;border:1px s
       <div class="note warn" id="el-gridnote" hidden>Danh sách đang lấy từ <b>Cắt lưới</b>. <button class="link" id="el-refind">Tìm lại theo vùng trong suốt</button></div>
       <div class="fld"><div class="fld-h"><label for="el-gap">Gộp mảnh gần nhau</label><span class="val" id="el-gap-v"></span></div><input type="range" id="el-gap" min="0" max="80" value="6"><span class="small">Các mảnh cách nhau ít hơn ngần này được tính là một element (chữ, tia lấp lánh…).</span></div>
       <div class="fld"><div class="fld-h"><label for="el-min">Bỏ mảnh nhỏ hơn</label><span class="val" id="el-min-v"></span></div><input type="range" id="el-min" min="0" max="2000" step="10" value="60"></div>
+      <div class="seg" id="el-mode"><button data-v="pick">Chọn element</button><button data-v="edit">Sửa &amp; thêm khung</button></div>
+      <p class="small" id="el-edit-help" hidden>Kéo trên ảnh để vẽ khung mới. Kéo cạnh hoặc góc để đổi cỡ. Bấm vào một khung rồi kéo bên trong để di chuyển. Bấm <b>×</b> trên thẻ hoặc phím Delete để xóa khung đang chọn. Giữ Space rồi kéo để di chuyển ảnh. Đổi hai thanh trên sẽ tìm lại từ đầu, Ctrl+Z để lấy lại khung đã sửa.</p>
       <div class="res-head"><b id="el-count">0 element</b><span><button class="link" id="el-all">Chọn hết</button> · <button class="link" id="el-none">Bỏ chọn</button></span></div>
       <div class="el-grid" id="el-grid"></div>
       <p class="small" id="el-more" hidden></p>
@@ -858,6 +865,7 @@ const P={
   coMode:'erase',coSize:40,coHard:60,coOp:100,hover:null,
   rsLock:true,rsMethod:store.get('rsMethod','smooth'),cvAnchor:4,
   crAspect:0,crDrag:null,
+  elMode:'pick',elDrag:null,
   slMode:'rc',
   exFmt:store.get('exFmt','png'),exScale:1,icons:new Set([16,32,64,128,256,512]),
   pal:null,palCv:null,palK:0
@@ -909,10 +917,12 @@ function commit(label,cv,restore){const d=S.cur;if(!d)return;stopPreview(true);c
   d.undo.push({cv:d.cv,restore:d.restore,label});while(d.undo.length>histLimit(cv))d.undo.shift();d.redo=[];
   d.cv=cv;if(restore)d.restore=restore;else if(dims)d.restore=resizeCv(d.restore,cv.width,cv.height,'smooth');
   afterEdit(dims);}
-function afterEdit(dims){const d=S.cur;d.elements=null;d.elMap=null;d.elSource=null;P.pal=null;if(dims){d.crop=null;fitView();}updateUndo();scheduleThumb();updateInfo();const t=TOOLS[S.tool];if(t.refresh)t.refresh();updateHint();render();}
-function undo(){const d=S.cur;if(!d||S.stroking)return;if(S.preview){stopPreview();toast('Đã bỏ xem trước');return;}if(!d.undo.length)return;const e=d.undo.pop();d.redo.push({cv:d.cv,restore:d.restore,label:e.label});const dims=e.cv.width!==d.cv.width||e.cv.height!==d.cv.height;d.cv=e.cv;d.restore=e.restore;afterEdit(dims);toast('Hoàn tác: '+e.label);}
-function redo(){const d=S.cur;if(!d||S.stroking||!d.redo.length)return;stopPreview();const e=d.redo.pop();d.undo.push({cv:d.cv,restore:d.restore,label:e.label});const dims=e.cv.width!==d.cv.width||e.cv.height!==d.cv.height;d.cv=e.cv;d.restore=e.restore;afterEdit(dims);toast('Làm lại: '+e.label);}
-function updateUndo(){const d=S.cur;const u=$('#btn-undo'),r=$('#btn-redo');u.disabled=!d||!d.undo.length;r.disabled=!d||!d.redo.length;u.title=d&&d.undo.length?'Hoàn tác: '+d.undo[d.undo.length-1].label+' (Ctrl+Z)':'Hoàn tác (Ctrl+Z)';r.title=d&&d.redo.length?'Làm lại: '+d.redo[d.redo.length-1].label:'Làm lại (Ctrl+Shift+Z)';}
+function afterEdit(dims){const d=S.cur;d.elements=null;d.elMap=null;d.elSource=null;d.elUndo=[];d.elRedo=[];d.elActive=null;d.elEdited=false;P.pal=null;if(dims){d.crop=null;fitView();}updateUndo();scheduleThumb();updateInfo();const t=TOOLS[S.tool];if(t.refresh)t.refresh();updateHint();render();}
+function undo(){const d=S.cur;if(!d||S.stroking)return;if(S.preview){stopPreview();toast('Đã bỏ xem trước');return;}if(elStack(d,'elUndo')){elStep(d,'elUndo','elRedo','Hoàn tác: ');return;}if(!d.undo.length)return;const e=d.undo.pop();d.redo.push({cv:d.cv,restore:d.restore,label:e.label});const dims=e.cv.width!==d.cv.width||e.cv.height!==d.cv.height;d.cv=e.cv;d.restore=e.restore;afterEdit(dims);toast('Hoàn tác: '+e.label);}
+function redo(){const d=S.cur;if(d&&!S.stroking&&elStack(d,'elRedo')){elStep(d,'elRedo','elUndo','Làm lại: ');return;}if(!d||S.stroking||!d.redo.length)return;stopPreview();const e=d.redo.pop();d.undo.push({cv:d.cv,restore:d.restore,label:e.label});const dims=e.cv.width!==d.cv.width||e.cv.height!==d.cv.height;d.cv=e.cv;d.restore=e.restore;afterEdit(dims);toast('Làm lại: '+e.label);}
+function updateUndo(){const d=S.cur;const u=$('#btn-undo'),r=$('#btn-redo');const eu=elStack(d,'elUndo'),er=elStack(d,'elRedo');
+  const ul=eu?eu[eu.length-1].label:d&&d.undo.length?d.undo[d.undo.length-1].label:'',rl=er?er[er.length-1].label:d&&d.redo.length?d.redo[d.redo.length-1].label:'';
+  u.disabled=!ul;r.disabled=!rl;u.title=ul?'Hoàn tác: '+ul+' (Ctrl+Z)':'Hoàn tác (Ctrl+Z)';r.title=rl?'Làm lại: '+rl:'Làm lại (Ctrl+Shift+Z)';}
 function geom(label,fn){const d=S.cur;if(!d)return;stopPreview();commit(label,fn(d.cv),fn(d.restore));}
 
 /* ================= xem trước ================= */
@@ -1050,24 +1060,26 @@ TOOLS.co={title:'Cọ tẩy',desc:'Tẩy bớt, hoặc vẽ khôi phục lại p
 
 /* ---- Tách element ---- */
 function elOpts(){return{gap:val('el-gap'),minArea:val('el-min'),thr:12};}
-let elT=0;function requestEls(){clearTimeout(elT);elT=setTimeout(()=>{const d=S.cur;if(d){d.elements=null;d.elSource=null;ensureEls();}},140);}
+let elT=0;function requestEls(){clearTimeout(elT);elT=setTimeout(()=>{const d=S.cur;if(d){elKeepEdits(d);d.elements=null;d.elSource=null;d.elActive=null;ensureEls();render();}},140);}
 rng('el-gap',px,requestEls);rng('el-min',v=>nf(v)+' px²',requestEls);rng('el-pad',px);
 function ensureEls(){const d=S.cur;const grid=$('#el-grid');
   if(!d){grid.innerHTML='';$('#el-count').textContent='0 element';return;}
   $('#el-gridnote').hidden=d.elSource!=='grid';
   if(!d.elements){const share=transparencyShare(d.cv);$('#el-notice').hidden=share>0.004;
-    const run=()=>{const r=findElements(d.cv,elOpts());d.elements=r.els;d.elMap=r.map;const base=slug(d.name);d.elements.forEach((e,i)=>{e.name=base+'-'+String(i+1).padStart(2,'0');e.sel=true;});};
+    const run=()=>{const r=findElements(d.cv,elOpts());d.elements=r.els;d.elMap=r.map;d.elEdited=false;const base=slug(d.name);d.elements.forEach((e,i)=>{e.name=base+'-'+String(i+1).padStart(2,'0');e.sel=true;});};
     if(d.cv.width*d.cv.height>6e6){withBusy('Đang tìm element…',async()=>run()).then(()=>{renderEls();render();});return;}run();}
   else if(d.elSource==='grid')$('#el-notice').hidden=true;
   renderEls();}
-function elCanvas(d,e){if(!e.cvs)e.cvs=extractEl(d.elMap,e);return e.cvs;}
+function elCanvas(d,e){if(!e.cvs)e.cvs=e.label>0&&d.elMap?extractEl(d.elMap,e):rectEl(d.cv,e);return e.cvs;}
+function rectEl(cv,e){const c=cropCv(cv,e.x,e.y,e.w,e.h);const b=alphaBBox(c,2);return b&&(b.w<c.width||b.h<c.height)?cropCv(c,b.x,b.y,b.w,b.h):c;}
 const EL_MAX=240;
 function renderEls(){const d=S.cur;const grid=$('#el-grid');grid.innerHTML='';if(!d||!d.elements)return;const els=d.elements;
   $('#el-count').textContent=nf(els.length)+' element · '+els.filter(e=>e.sel).length+' đã chọn';
   const more=$('#el-more');more.hidden=els.length<=EL_MAX;more.textContent=`Đang hiện ${EL_MAX}/${nf(els.length)} thẻ. Tăng “Gộp mảnh” hoặc “Bỏ mảnh nhỏ” để gọn hơn. Nút lưu vẫn tính mọi element đã chọn.`;
-  els.slice(0,EL_MAX).forEach((e,i)=>{const c=document.createElement('div');c.className='el-card'+(e.sel?' on':'');c.dataset.i=i;
+  els.slice(0,EL_MAX).forEach((e,i)=>{const c=document.createElement('div');c.className='el-card'+(e.sel?' on':'')+(e===d.elActive?' act':'');c.dataset.i=i;
     const th=document.createElement('div');th.className='el-th chk-bg';const cv=document.createElement('canvas');const src=elCanvas(d,e);cv.width=cv.height=200;drawThumb(cv,src);if(Math.max(src.width,src.height)<100)cv.style.imageRendering='pixelated';th.append(cv);
-    th.onclick=()=>{e.sel=!e.sel;renderEls();render();};
+    th.onclick=()=>{if(P.elMode==='edit'){d.elActive=e;}else e.sel=!e.sel;renderEls();render();};
+    const del=document.createElement('button');del.type='button';del.className='el-del';del.title='Xóa khung này';del.setAttribute('aria-label','Xóa element '+(i+1));del.innerHTML='<svg class="i"><use href="#i-x"/></svg>';del.onclick=ev=>{ev.stopPropagation();elDelete(d,e);};th.append(del);
     const num=document.createElement('span');num.className='el-num';num.textContent=i+1;
     const cb=document.createElement('input');cb.type='checkbox';cb.className='el-sel';cb.checked=!!e.sel;cb.setAttribute('aria-label','Chọn element '+(i+1));cb.onchange=()=>{e.sel=cb.checked;c.classList.toggle('on',e.sel);$('#el-count').textContent=nf(els.length)+' element · '+els.filter(x=>x.sel).length+' đã chọn';render();};
     const nm=document.createElement('input');nm.className='el-name';nm.value=e.name;nm.setAttribute('aria-label','Tên element '+(i+1));nm.onchange=()=>{e.name=safeName(nm.value)||e.name;nm.value=e.name;};
@@ -1084,19 +1096,65 @@ $('#el-zip').onclick=()=>{const d=S.cur;if(!d||!d.elements)return;const sel=d.el
 $('#el-tabs').onclick=()=>{const d=S.cur;if(!d||!d.elements)return;const sel=d.elements.filter(e=>e.sel);if(!sel.length){toast('Chưa chọn element nào');return;}if(sel.length>30){toast('Chỉ mở tối đa 30 tab một lần, hãy bỏ chọn bớt');return;}sel.forEach(e=>{const c=finishOne(d,e);S.docs.push({id:++docSeq,name:e.name+'.png',cv:c,restore:clone(c),undo:[],redo:[],elements:null,view:null});});setDoc(S.docs[S.docs.length-1]);toast('Đã mở '+sel.length+' tab');};
 $('#sh-make').onclick=()=>{const d=S.cur;if(!d||!d.elements)return;const sel=d.elements.filter(e=>e.sel);if(!sel.length){toast('Chưa chọn element nào');return;}const cvs=sel.map(e=>finishOne(d,e));const sheet=packSheet(cvs,+$('#sh-cols').value||0,Math.max(0,+$('#sh-gap').value||0),chkd('sh-uniform'));addDoc('sprite-sheet-'+slug(d.name)+'.png',sheet);toast('Đã ghép '+sel.length+' element thành sprite sheet '+sheet.width+'×'+sheet.height);};
 $('#el-autobg').onclick=async()=>{const d=S.cur;if(!d)return;const r=detectBg(d.cv);if(r.transparent){toast('Không dò được màu nền');return;}await withBusy('Đang tách nền…',async()=>{commit('Tách nền theo màu',colorKey(d.cv,r,{tol:16,soft:10,contiguous:true,defringe:true}));});};
-$('#el-refind').onclick=()=>{const d=S.cur;if(!d)return;d.elements=null;d.elSource=null;ensureEls();render();};
+$('#el-refind').onclick=()=>{const d=S.cur;if(!d)return;elKeepEdits(d);d.elements=null;d.elSource=null;d.elActive=null;ensureEls();render();};
+/* sửa khung bằng tay: lịch sử riêng cho khung (Ctrl+Z trong công cụ này), vẽ thêm, đổi cỡ, di chuyển, xóa */
+function elSnap(d){return{els:d.elements?d.elements.map(e=>({...e})):null,map:d.elMap,src:d.elSource,edited:!!d.elEdited};}
+function elPush(d,label,snap){(d.elUndo=d.elUndo||[]).push({snap:snap||elSnap(d),label});if(d.elUndo.length>60)d.elUndo.shift();d.elRedo=[];}
+function elKeepEdits(d){if(d.elements&&d.elEdited){elPush(d,'Tìm lại element');updateUndo();}}
+function elStack(d,k){return d&&S.tool==='element'&&d[k]&&d[k].length?d[k]:null;}
+function elStep(d,from,to,verb){stopPreview();const e=d[from].pop();(d[to]=d[to]||[]).push({snap:elSnap(d),label:e.label});const s=e.snap;d.elements=s.els;d.elMap=s.map;d.elSource=s.src;d.elEdited=s.edited;d.elActive=null;d.elHover=-1;P.elDrag=null;elChanged();toast(verb+e.label);}
+function elChanged(){const d=S.cur;if(d)$('#el-gridnote').hidden=d.elSource!=='grid';renderEls();updateUndo();render();}
+function elDelete(d,e){const i=d.elements?d.elements.indexOf(e):-1;if(i<0)return;elPush(d,'Xóa khung');d.elements.splice(i,1);if(d.elActive===e)d.elActive=null;d.elHover=-1;d.elEdited=true;elChanged();}
+function elNewName(d){const base=slug(d.name),used=new Set(d.elements.map(e=>e.name));let k=d.elements.length+1,n;while(used.has(n=base+'-'+String(k).padStart(2,'0')))k++;return n;}
+function elBoxHit(d,e,p){const v=d.view,z=v.zoom;const l=v.x+e.x*z,t=v.y+e.y*z,R=l+e.w*z,B=t+e.h*z;const tol=window.matchMedia('(pointer:coarse)').matches?14:7;
+  const nx=Math.abs(p.x-l)<tol,ex=Math.abs(p.x-R)<tol,ny=Math.abs(p.y-t)<tol,sy=Math.abs(p.y-B)<tol;const inX=p.x>l-tol&&p.x<R+tol,inY=p.y>t-tol&&p.y<B+tol;
+  if(ny&&nx)return'nw';if(ny&&ex)return'ne';if(sy&&nx)return'sw';if(sy&&ex)return'se';if(ny&&inX)return'n';if(sy&&inX)return's';if(nx&&inY)return'w';if(ex&&inY)return'e';if(p.x>l&&p.x<R&&p.y>t&&p.y<B)return'move';return null;}
+function elEditHit(p){const d=S.cur;if(!d||!d.elements||!d.view)return null;const L=d.elements,a=d.elActive&&L.includes(d.elActive)?d.elActive:null;
+  if(a){const m=elBoxHit(d,a,p);if(m)return{e:a,m};}let inside=null;for(let i=L.length-1;i>=0;i--){if(L[i]===a)continue;const m=elBoxHit(d,L[i],p);if(m==='move'){if(!inside)inside={e:L[i],m:'inside'};}else if(m)return{e:L[i],m};}return inside;}
+function elDragMove(ip,p){const d=S.cur,D=P.elDrag;if(!D)return;
+  if(!D.live){if(Math.hypot(p.x-D.p0.x,p.y-D.p0.y)<4)return;D.live=true;
+    if(D.mode==='new'){D.el={x:0,y:0,w:1,h:1,label:-1,cvs:null,name:elNewName(d),sel:true};d.elements.push(D.el);d.elActive=D.el;}}
+  const W=d.cv.width,H=d.cv.height,e=D.el;let l,t,r,b;
+  if(D.mode==='new'){const x0=clamp(D.start.x,0,W),y0=clamp(D.start.y,0,H),x1=clamp(ip.x,0,W),y1=clamp(ip.y,0,H);
+    l=Math.round(Math.min(x0,x1));t=Math.round(Math.min(y0,y1));r=Math.max(l+1,Math.round(Math.max(x0,x1)));b=Math.max(t+1,Math.round(Math.max(y0,y1)));r=Math.min(r,W);b=Math.min(b,H);l=Math.min(l,r-1);t=Math.min(t,b-1);}
+  else{const o=D.r0,dx=Math.round(ip.x-D.start.x),dy=Math.round(ip.y-D.start.y),m=D.mode;l=o.x;t=o.y;r=o.x+o.w;b=o.y+o.h;
+    if(m==='move'){l=clamp(o.x+dx,0,W-o.w);t=clamp(o.y+dy,0,H-o.h);r=l+o.w;b=t+o.h;}
+    else{if(m.includes('w'))l=clamp(l+dx,0,r-1);if(m.includes('e'))r=clamp(r+dx,l+1,W);if(m.includes('n'))t=clamp(t+dy,0,b-1);if(m.includes('s'))b=clamp(b+dy,t+1,H);}}
+  e.x=l;e.y=t;e.w=r-l;e.h=b-t;render();}
+function elDragEnd(){const d=S.cur,D=P.elDrag;P.elDrag=null;if(!D||!d)return;
+  if(!D.live){d.elActive=D.el||D.pick||null;D.el=d.elActive;renderEls();render();if(D.el){const i=d.elements.indexOf(D.el);const card=$(`.el-card[data-i="${i}"]`);if(card)card.scrollIntoView({block:'nearest',behavior:'smooth'});}return;}
+  const e=D.el,o=D.r0;if(o&&e.x===o.x&&e.y===o.y&&e.w===o.w&&e.h===o.h){renderEls();render();return;}
+  e.label=-1;e.cvs=null;d.elEdited=true;d.elActive=e;elPush(d,D.mode==='new'?'Thêm khung':D.mode==='move'?'Di chuyển khung':'Đổi cỡ khung',D.snap);elChanged();
+  const i=d.elements.indexOf(e);const card=$(`.el-card[data-i="${i}"]`);if(card)card.scrollIntoView({block:'nearest',behavior:'smooth'});}
+function elDragCancel(){const d=S.cur,D=P.elDrag;P.elDrag=null;if(!D||!d||!D.live)return;
+  if(D.mode==='new'){const i=d.elements.indexOf(D.el);if(i>=0)d.elements.splice(i,1);d.elActive=null;}else Object.assign(D.el,D.r0);render();}
+const EL_CUR={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',move:'move'};
+function setElMode(m){P.elMode=m;setElSeg(m);$('#el-edit-help').hidden=m!=='edit';const d=S.cur;if(d&&m!=='edit')d.elActive=null;P.elDrag=null;view.style.cursor='';view.className='';renderEls();updateHint();render();}
+const setElSeg=seg('el-mode',P.elMode,setElMode);
 function elHit(ip){const d=S.cur;if(!d||!d.elements)return -1;for(let i=d.elements.length-1;i>=0;i--){const e=d.elements[i];if(ip.x>=e.x&&ip.x<e.x+e.w&&ip.y>=e.y&&ip.y<e.y+e.h)return i;}return -1;}
-TOOLS.element={title:'Tách element',desc:'Tự tìm từng vật thể rời nhau trên nền trong suốt rồi lưu riêng từng cái, hoặc ghép lại thành sprite sheet.',
+TOOLS.element={title:'Tách element',desc:'Tự tìm từng vật thể rời nhau trên nền trong suốt, sửa hoặc vẽ thêm khung bằng tay, rồi lưu riêng từng cái hoặc ghép thành sprite sheet.',
   enter(){ensureEls();},refresh(){ensureEls();},
+  exit(){P.elDrag=null;view.style.cursor='';},
+  wantsDrag:()=>P.elMode==='edit'&&!!(S.cur&&S.cur.elements),
+  onDown(ip,e,p){const d=S.cur;const h=elEditHit(p);P.elDrag=h&&h.m!=='inside'?{mode:h.m,el:h.e,start:ip,p0:p,r0:{x:h.e.x,y:h.e.y,w:h.e.w,h:h.e.h},snap:elSnap(d),live:false}:{mode:'new',el:null,pick:h?h.e:null,start:ip,p0:p,r0:null,snap:elSnap(d),live:false};},
+  onMove(ip,e,p){elDragMove(ip,p);},
+  onUp(){elDragEnd();},
+  cancelDrag(){elDragCancel();},
   onClick(ip){const i=elHit(ip);if(i<0)return;const d=S.cur,e=d.elements[i];e.sel=!e.sel;renderEls();render();const card=$(`.el-card[data-i="${i}"]`);if(card)card.scrollIntoView({block:'nearest',behavior:'smooth'});},
-  onHover(ip){const d=S.cur;const i=elHit(ip);if(i!==d.elHover){d.elHover=i;render();$$('.el-card').forEach(c=>c.classList.toggle('hov',+c.dataset.i===i));}view.className=i>=0?'t-pointer':'';},
+  onHover(ip,p){const d=S.cur;if(P.elMode==='edit'){const h=elEditHit(p);const i=h&&d.elements?d.elements.indexOf(h.e):-1;if(i!==d.elHover){d.elHover=i;render();$$('.el-card').forEach(c=>c.classList.toggle('hov',+c.dataset.i===i));}view.className='';view.style.cursor=S.space?'':(h&&EL_CUR[h.m]||'crosshair');return;}
+    const i=elHit(ip);if(i!==d.elHover){d.elHover=i;render();$$('.el-card').forEach(c=>c.classList.toggle('hov',+c.dataset.i===i));}view.className=i>=0?'t-pointer':'';},
   overlay(g,x,y,z,d){if(!d.elements)return;const many=d.elements.length>300;g.font='600 10.5px "JetBrains Mono",monospace';g.textBaseline='middle';
     d.elements.forEach((e,i)=>{const sx=x+e.x*z,sy=y+e.y*z,sw=e.w*z,sh=e.h*z;const hov=i===d.elHover;
       if(hov){g.fillStyle='rgba(240,180,0,.14)';g.fillRect(sx,sy,sw,sh);}
       g.lineWidth=hov?2.5:1.5;if(e.sel){g.setLineDash([]);g.strokeStyle='#f0b400';}else{g.setLineDash([4,3]);g.strokeStyle='rgba(255,255,255,.7)';}
       g.strokeRect(Math.round(sx)-0.5,Math.round(sy)-0.5,Math.round(sw)+1,Math.round(sh)+1);g.setLineDash([]);
-      if(!many||hov){const t=String(i+1);const tw=g.measureText(t).width+8;g.fillStyle=e.sel?'#f0b400':'rgba(9,21,15,.85)';g.fillRect(Math.round(sx)-1,Math.round(sy)-17,tw,16);g.fillStyle=e.sel?'#1d1600':'#fff';g.fillText(t,Math.round(sx)+3,Math.round(sy)-9);}});},
-  hint:()=>'Bấm vào khung để chọn hoặc bỏ chọn element',cursor:()=>''};
+      if(!many||hov){const t=String(i+1);const tw=g.measureText(t).width+8;g.fillStyle=e.sel?'#f0b400':'rgba(9,21,15,.85)';g.fillRect(Math.round(sx)-1,Math.round(sy)-17,tw,16);g.fillStyle=e.sel?'#1d1600':'#fff';g.fillText(t,Math.round(sx)+3,Math.round(sy)-9);}});
+    const a=P.elMode==='edit'&&d.elActive&&d.elements.includes(d.elActive)?d.elActive:null;
+    if(a){const sx=Math.round(x+a.x*z)-0.5,sy=Math.round(y+a.y*z)-0.5,sw=Math.round(a.w*z)+1,sh=Math.round(a.h*z)+1;g.lineWidth=2;g.strokeStyle='#f0b400';g.strokeRect(sx,sy,sw,sh);
+      const hs=window.matchMedia('(pointer:coarse)').matches?10:7;g.fillStyle='#fff';g.strokeStyle='#1d1600';g.lineWidth=1.5;
+      for(const [hx,hy] of [[0,0],[.5,0],[1,0],[0,.5],[1,.5],[0,1],[.5,1],[1,1]]){if((hx===.5&&sw<hs*3)||(hy===.5&&sh<hs*3))continue;const cx0=Math.round(sx+sw*hx-hs/2),cy0=Math.round(sy+sh*hy-hs/2);g.fillRect(cx0,cy0,hs,hs);g.strokeRect(cx0+.5,cy0+.5,hs-1,hs-1);}
+      const t=a.w+'×'+a.h;const tw=g.measureText(t).width+8;g.fillStyle='rgba(9,21,15,.85)';g.fillRect(sx+sw-tw,sy+sh+5,tw,16);g.fillStyle='#fff';g.fillText(t,sx+sw-tw+4,sy+sh+13);}},
+  hint:()=>P.elMode==='edit'?'Kéo để vẽ khung · kéo cạnh, góc để đổi cỡ · bấm khung rồi kéo để di chuyển · Delete để xóa':'Bấm vào khung để chọn hoặc bỏ chọn element',cursor:()=>''};
 
 /* ---- Cắt lưới ---- */
 seg('sl-mode',P.slMode,v=>{P.slMode=v;$$('[data-slm]').forEach(e=>e.hidden=e.dataset.slm!==v);updateSlice();});
@@ -1113,7 +1171,7 @@ function cutCells(){const d=S.cur;const s=sliceCells();if(!s||s.bad||!s.cells.le
   for(const c of s.cells){let cv=cropCv(d.cv,c.x,c.y,c.w,c.h);if(skip&&cellEmpty(gd(cv)))continue;if(trim){const t=alphaBBox(cv,2);if(t)cv=cropCv(cv,t.x,t.y,t.w,t.h);}out.push({name:`${base}-r${c.r+1}-c${c.c+1}`,cv,x:c.x,y:c.y,w:c.w,h:c.h});}
   if(!out.length){toast('Mọi ô đều trống');return null;}return out;}
 $('#sl-zip').onclick=()=>{const c=cutCells();if(c)saveZip(slug(S.cur.name)+'-cells.zip',c);};
-$('#sl-toel').onclick=()=>{const d=S.cur;const c=cutCells();if(!c)return;d.elements=c.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,label:-1,cvs:o.cv,name:o.name,sel:true}));d.elSource='grid';setTool('element');toast('Đã đưa '+c.length+' ô vào danh sách element');};
+$('#sl-toel').onclick=()=>{const d=S.cur;const c=cutCells();if(!c)return;elKeepEdits(d);d.elActive=null;d.elEdited=false;d.elements=c.map(o=>({x:o.x,y:o.y,w:o.w,h:o.h,label:-1,cvs:o.cv,name:o.name,sel:true}));d.elSource='grid';setTool('element');toast('Đã đưa '+c.length+' ô vào danh sách element');};
 TOOLS.luoi={title:'Cắt lưới',desc:'Cắt sprite sheet hoặc tileset thành các ô đều nhau.',enter(){updateSlice();},refresh(){updateSlice();},
   overlay(g,x,y,z){const s=sliceCells();if(!s||s.bad)return;g.lineWidth=1;g.strokeStyle='#f0b400';g.font='600 10px "JetBrains Mono",monospace';g.textBaseline='top';const lbl=s.cw*z>34&&s.ch*z>22;
     s.cells.forEach((c,i)=>{const sx=Math.round(x+c.x*z)+0.5,sy=Math.round(y+c.y*z)+0.5;g.strokeRect(sx,sy,Math.round(c.w*z)-1,Math.round(c.h*z)-1);if(lbl){g.fillStyle='rgba(9,21,15,.75)';const t=String(i+1);g.fillRect(sx+1,sy+1,g.measureText(t).width+6,14);g.fillStyle='#f0b400';g.fillText(t,sx+4,sy+3);}});},
@@ -1245,7 +1303,7 @@ function viewCursor(){const t=TOOLS[S.tool];return(t&&t.cursor&&t.cursor())||'';
 function setTool(t){if(!TOOLS[t])t='nen';const prev=TOOLS[S.tool];if(prev&&prev.exit&&S.tool!==t)prev.exit();stopPreview();S.tool=t;store.set('tool',t);
   $$('#rail button').forEach(b=>{b.classList.toggle('on',b.dataset.tool===t);b.setAttribute('aria-current',b.dataset.tool===t?'page':'false');});
   $$('.tp').forEach(s=>s.hidden=s.dataset.tool!==t);$('#tool-title').textContent=TOOLS[t].title;$('#tool-desc').textContent=TOOLS[t].desc;
-  view.style.cursor='';view.className=viewCursor();if(S.cur&&TOOLS[t].enter)TOOLS[t].enter();updateHint();render();}
+  view.style.cursor='';view.className=viewCursor();if(S.cur&&TOOLS[t].enter)TOOLS[t].enter();updateUndo();updateHint();render();}
 $('#rail').onclick=e=>{const b=e.target.closest('[data-tool]');if(b)setTool(b.dataset.tool);};
 function updateHint(){const t=TOOLS[S.tool];const h=$('#hint');h.textContent=S.compare?'Đang xem ảnh gốc':(t&&t.hint&&t.hint())||'Kéo để di chuyển · cuộn chuột để phóng to';h.hidden=!S.cur;$('#pv-tag').hidden=!S.preview||S.stroking||S.compare;}
 
@@ -1288,6 +1346,7 @@ window.addEventListener('keydown',e=>{if(help.open)return;const tg=e.target,tag=
   if(e.key==='['||e.key===']'){const v=clamp(P.coSize+(e.key===']'?1:-1)*Math.max(1,Math.round(P.coSize*0.15)),1,400);setRng('co-size',v);return;}
   if(e.key==='0'){fitView();return;}if(e.key==='1'){if(S.cur)zoomAt(1/S.cur.view.zoom,VW/2,VH/2);return;}
   if(e.key==='+'||e.key==='='){zoomAt(1.25,VW/2,VH/2);return;}if(e.key==='-'||e.key==='_'){zoomAt(0.8,VW/2,VH/2);return;}
+  if(S.tool==='element'&&P.elMode==='edit'&&S.cur&&S.cur.elActive){if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();elDelete(S.cur,S.cur.elActive);return;}if(e.key==='Escape'){S.cur.elActive=null;renderEls();render();return;}}
   if(e.key==='Escape'){stopPreview();return;}});
 window.addEventListener('keyup',e=>{if(e.code==='Space'&&S.space){S.space=false;view.style.cursor='';}});
 window.addEventListener('blur',()=>{S.space=false;if(S.compare){S.compare=false;updateHint();render();}});
